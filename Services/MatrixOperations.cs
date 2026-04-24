@@ -1,9 +1,17 @@
 using System;
 using System.Windows.Forms;
 
+/// <summary>
+/// Provides helper methods for converting between WinForms text grids and matrix objects.
+/// </summary>
 public static class MatrixOperations
 {
-    // Parses the text from TextBoxes to create a Matrix object
+    /// <summary>
+    /// Parses a two-dimensional grid of text boxes into a numeric matrix.
+    /// Empty or invalid cells are interpreted as zero.
+    /// </summary>
+    /// <param name="textBoxes">Grid of input text boxes.</param>
+    /// <returns>A matrix containing the parsed values.</returns>
     public static Matrix ParseMatrix(TextBox[,] textBoxes)
     {
         int rows = textBoxes.GetLength(0);
@@ -22,7 +30,11 @@ public static class MatrixOperations
         return matrix;
     }
 
-    // Displays the result matrix in the TextBoxes
+    /// <summary>
+    /// Writes a matrix result into a grid of text boxes.
+    /// </summary>
+    /// <param name="result">Matrix whose values should be displayed.</param>
+    /// <param name="textBoxes">Target text box grid.</param>
     public static void DisplayResult(Matrix result, TextBox[,] textBoxes)
     {
         int rows = result.Rows;
@@ -37,7 +49,10 @@ public static class MatrixOperations
         }
     }
 
-    // Clears the grid of TextBoxes
+    /// <summary>
+    /// Clears all cells in a text box grid.
+    /// </summary>
+    /// <param name="textBoxes">Grid to clear.</param>
     public static void ClearGrid(TextBox[,] textBoxes)
     {
         foreach (var textBox in textBoxes)
@@ -46,7 +61,10 @@ public static class MatrixOperations
         }
     }
 
-    // Fills empty cells in the grid with zeros
+    /// <summary>
+    /// Fills empty cells in a text box grid with zeroes.
+    /// </summary>
+    /// <param name="textBoxes">Grid whose empty cells should be filled.</param>
     public static void FillEmptyCellsWithZeros(TextBox[,] textBoxes)
     {
         foreach (var textBox in textBoxes)
