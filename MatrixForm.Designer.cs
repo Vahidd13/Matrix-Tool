@@ -487,7 +487,9 @@ public partial class MatrixForm : Form
             Size = new Size(420, 430),
             ReadOnly = true,
             Multiline = true,
-            ScrollBars = ScrollBars.Vertical
+            WordWrap = false,
+            ScrollBars = ScrollBars.Both,
+            Font = new Font("Consolas", 10F)
         };
 
         tabInverse.Controls.Add(lblStepsInverse);
@@ -506,7 +508,9 @@ public partial class MatrixForm : Form
             Size = new Size(420, 430),
             ReadOnly = true,
             Multiline = true,
-            ScrollBars = ScrollBars.Vertical
+            WordWrap = false,
+            ScrollBars = ScrollBars.Both,
+            Font = new Font("Consolas", 10F)
         };
 
         tabRREF.Controls.Add(lblStepsRREF);

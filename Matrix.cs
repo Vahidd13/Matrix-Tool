@@ -35,7 +35,7 @@ public partial class MatrixForm : Form
         ApplyUiTheme();
         // Initialize matrix inputs for various tabs
         InitializeMatrixInputs(matrixRowsAddition, matrixColsAddition, tabAddition, "Addition");
-        InitializeMatrixInputs(matrixRowsMatrix1, matrixColsMatrix2, tabMultiplication, "Multiplication");
+        InitializeMatrixInputs(matrixRowsMatrix1, matrixColsMatrix1, tabMultiplication, "Multiplication");
         InitializeMatrixInputs(matrixRowsDeterminant, matrixRowsDeterminant, tabDeterminant, "Determinant");
         InitializeMatrixInputs(matrixRowsTranspose, matrixColsTranspose, tabTranspose, "Transpose");
         InitializeMatrixInputs(matrixRowsInverse, matrixColsInverse, tabInverse, "Inverse");
@@ -58,6 +58,8 @@ public partial class MatrixForm : Form
         }
 
         ApplyFontRecursively(this.Controls);
+        txtStepsInverse.Font = new Font("Consolas", 10F);
+        txtStepsRREF.Font = new Font("Consolas", 10F);
         StyleButtons();
     }
 
@@ -75,32 +77,52 @@ public partial class MatrixForm : Form
 
     private void StyleButtons()
     {
-        var buttons = GetAllControls<Button>(this).ToList();
-        foreach (var button in buttons)
+        foreach (var button in GetAllControls<Button>(this))
         {
+            SetButtonColors(button, GetButtonBaseColor(button));
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderColor = Color.Silver;
             button.FlatAppearance.BorderSize = 1;
-            button.BackColor = neutralButtonColor;
-            button.ForeColor = Color.Black;
+            button.FlatAppearance.MouseOverBackColor = GetButtonHoverColor(button);
+            button.FlatAppearance.MouseDownBackColor = BlendColors(GetButtonBaseColor(button), Color.Black, 0.10);
+            button.UseVisualStyleBackColor = false;
         }
+    }
 
-        var primaryButtons = new[]
-        {
-            btnCalculateAddition,
-            btnCalculateMultiplication,
-            btnCalculateDeterminant,
-            btnCalculateTranspose,
-            btnCalculateInverse,
-            btnCalculateEigenvalues,
-            btnCalculateRREF
-        };
+    private void SetButtonColors(Button button, Color backColor)
+    {
+        button.BackColor = backColor;
+        button.ForeColor = IsPrimaryButton(button) ? Color.White : Color.Black;
+    }
 
-        foreach (var button in primaryButtons)
-        {
-            button.BackColor = accentColor;
-            button.ForeColor = Color.White;
-        }
+    private Color GetButtonBaseColor(Button button)
+    {
+        return IsPrimaryButton(button) ? accentColor : neutralButtonColor;
+    }
+
+    private Color GetButtonHoverColor(Button button)
+    {
+        return BlendColors(GetButtonBaseColor(button), Color.White, 0.18);
+    }
+
+    private bool IsPrimaryButton(Button button)
+    {
+        return button == btnCalculateAddition
+            || button == btnCalculateMultiplication
+            || button == btnCalculateDeterminant
+            || button == btnCalculateTranspose
+            || button == btnCalculateInverse
+            || button == btnCalculateEigenvalues
+            || button == btnCalculateRREF;
+    }
+
+    private static Color BlendColors(Color first, Color second, double amount)
+    {
+        amount = Math.Max(0, Math.Min(1, amount));
+        int r = (int)Math.Round(first.R + (second.R - first.R) * amount);
+        int g = (int)Math.Round(first.G + (second.G - first.G) * amount);
+        int b = (int)Math.Round(first.B + (second.B - first.B) * amount);
+        return Color.FromArgb(r, g, b);
     }
 
     private static IEnumerable<T> GetAllControls<T>(Control root) where T : Control
@@ -170,10 +192,12 @@ public partial class MatrixForm : Form
     {
         matrixRowsMatrix1 = (int)numRowsMatrix1Multiplication.Value;
         matrixColsMatrix1 = (int)numColsMatrix1Multiplication.Value;
-        InitializeMatrixInputs(matrixRowsMatrix1, matrixColsMatrix1, tabMultiplication, "Matrix1");
 
-        // Update the number of rows in the second matrix to match the number of columns in the first matrix
-        numRowsMatrix2Multiplication.Value = matrixColsMatrix1;
+        // Matrix multiplication requires columns(A) == rows(B).
+        matrixRowsMatrix2 = matrixColsMatrix1;
+        numRowsMatrix2Multiplication.Value = matrixRowsMatrix2;
+
+        InitializeMatrixInputs(matrixRowsMatrix1, matrixColsMatrix1, tabMultiplication, "Multiplication");
     }
 
     // Event handler for setting size of the second matrix in multiplication tab
@@ -190,7 +214,7 @@ public partial class MatrixForm : Form
         }
         else
         {
-            InitializeMatrixInputs(matrixRowsMatrix2, matrixColsMatrix2, tabMultiplication, "Matrix2");
+            InitializeMatrixInputs(matrixRowsMatrix2, matrixColsMatrix2, tabMultiplication, "Multiplication");
         }
     }
 
@@ -212,15 +236,15 @@ public partial class MatrixForm : Form
                     tabPage.Controls.Remove(textBox);
             }
         }
-        else if (operation == "Matrix1" || operation == "Matrix2")
+        else if (operation == "Multiplication" || operation == "Matrix1" || operation == "Matrix2")
         {
-            if (operation == "Matrix1" && txtMatrix1Multiplication != null)
+            if (txtMatrix1Multiplication != null)
             {
                 foreach (var textBox in txtMatrix1Multiplication)
                     tabPage.Controls.Remove(textBox);
             }
 
-            if (operation == "Matrix2" && txtMatrix2Multiplication != null)
+            if (txtMatrix2Multiplication != null)
             {
                 foreach (var textBox in txtMatrix2Multiplication)
                     tabPage.Controls.Remove(textBox);
@@ -345,7 +369,7 @@ public partial class MatrixForm : Form
             txtMatrix2Addition = txtMatrix2;
             txtResultAddition = txtResult;
         }
-        else if (operation == "Matrix1" || operation == "Matrix2")
+        else if (operation == "Multiplication" || operation == "Matrix1" || operation == "Matrix2")
         {
             TextBox[,] txtMatrix1 = new TextBox[matrixRowsMatrix1, matrixColsMatrix1];
             TextBox[,] txtMatrix2 = new TextBox[matrixRowsMatrix2, matrixColsMatrix2];
@@ -357,37 +381,31 @@ public partial class MatrixForm : Form
             int textBoxSize = 32;
             int blockSpacing = 60;
 
-            if (operation == "Matrix1")
+            for (int i = 0; i < matrixRowsMatrix1; i++)
             {
-                for (int i = 0; i < matrixRowsMatrix1; i++)
+                for (int j = 0; j < matrixColsMatrix1; j++)
                 {
-                    for (int j = 0; j < matrixColsMatrix1; j++)
+                    txtMatrix1[i, j] = new TextBox
                     {
-                        txtMatrix1[i, j] = new TextBox
-                        {
-                            Location = new Point(startX1 + j * (textBoxSize + spacing), startY + i * (textBoxSize + spacing)),
-                            Size = new Size(textBoxSize, textBoxSize)
-                        };
-                        tabPage.Controls.Add(txtMatrix1[i, j]);
-                    }
+                        Location = new Point(startX1 + j * (textBoxSize + spacing), startY + i * (textBoxSize + spacing)),
+                        Size = new Size(textBoxSize, textBoxSize)
+                    };
+                    tabPage.Controls.Add(txtMatrix1[i, j]);
                 }
             }
 
             int startX2 = startX1 + matrixColsMatrix1 * (textBoxSize + spacing) + blockSpacing;
 
-            if (operation == "Matrix2")
+            for (int i = 0; i < matrixRowsMatrix2; i++)
             {
-                for (int i = 0; i < matrixRowsMatrix2; i++)
+                for (int j = 0; j < matrixColsMatrix2; j++)
                 {
-                    for (int j = 0; j < matrixColsMatrix2; j++)
+                    txtMatrix2[i, j] = new TextBox
                     {
-                        txtMatrix2[i, j] = new TextBox
-                        {
-                            Location = new Point(startX2 + j * (textBoxSize + spacing), startY + i * (textBoxSize + spacing)),
-                            Size = new Size(textBoxSize, textBoxSize)
-                        };
-                        tabPage.Controls.Add(txtMatrix2[i, j]);
-                    }
+                        Location = new Point(startX2 + j * (textBoxSize + spacing), startY + i * (textBoxSize + spacing)),
+                        Size = new Size(textBoxSize, textBoxSize)
+                    };
+                    tabPage.Controls.Add(txtMatrix2[i, j]);
                 }
             }
 
@@ -407,16 +425,9 @@ public partial class MatrixForm : Form
                 }
             }
 
-            if (operation == "Matrix1")
-            {
-                txtMatrix1Multiplication = txtMatrix1;
-                txtResultMultiplication = txtResult;
-            }
-            else if (operation == "Matrix2")
-            {
-                txtMatrix2Multiplication = txtMatrix2;
-                txtResultMultiplication = txtResult;
-            }
+            txtMatrix1Multiplication = txtMatrix1;
+            txtMatrix2Multiplication = txtMatrix2;
+            txtResultMultiplication = txtResult;
         }
         else if (operation == "Determinant")
         {
@@ -770,28 +781,11 @@ public partial class MatrixForm : Form
         }
     }
 
-    // Apply fade effects to the button
+    // Apply simple opaque hover effects. Do not fade alpha; transparent button colors can hide the text.
     private void ApplyButtonEffects(Button button)
     {
-        button.MouseEnter += (s, e) => StartFadeEffect(button, true);
-        button.MouseLeave += (s, e) => StartFadeEffect(button, false);
-    }
-
-    // Start fade effect for the button
-    private void StartFadeEffect(Button button, bool fadeIn)
-    {
-        Timer timer = new Timer { Interval = 30 }; // Set timer interval
-        int step = 10; // Step for fade effect
-        int alpha = fadeIn ? 0 : 255; // Initial alpha value
-
-        timer.Tick += (s, e) =>
-        {
-            alpha = fadeIn ? Math.Min(alpha + step, 255) : Math.Max(alpha - step, 0);
-            button.BackColor = Color.FromArgb(alpha, button.BackColor);
-            if ((fadeIn && alpha >= 255) || (!fadeIn && alpha <= 0))
-                timer.Stop();
-        };
-
-        timer.Start();
+        button.UseVisualStyleBackColor = false;
+        button.MouseEnter += (s, e) => SetButtonColors(button, GetButtonHoverColor(button));
+        button.MouseLeave += (s, e) => SetButtonColors(button, GetButtonBaseColor(button));
     }
 }

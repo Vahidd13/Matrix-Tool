@@ -4,6 +4,7 @@ using Expr = MathNet.Symbolics.SymbolicExpression;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Text;
+using System.Numerics;
 
 public class Matrix
 {
@@ -230,7 +231,7 @@ public class Matrix
     {
         var steps = new List<string>();
         var rref = matrix.Clone();
-        steps.Add("Start:\n" + rref.ToDisplayString());
+        steps.Add("Start:" + Environment.NewLine + rref.ToDisplayString());
 
         int lead = 0;
         for (int r = 0; r < rref.Rows; r++)
@@ -252,13 +253,13 @@ public class Matrix
             if (i != r)
             {
                 rref.SwapRows(r, i);
-                steps.Add($"Swap R{r + 1} ↔ R{i + 1}\n{rref.ToDisplayString()}");
+                steps.Add($"Swap R{r + 1} ↔ R{i + 1}{Environment.NewLine}{rref.ToDisplayString()}");
             }
             var div = rref[r, lead];
             if (Math.Abs(div - 1) > 1e-10)
             {
                 rref.DivideRow(r, div);
-                steps.Add($"R{r + 1} = R{r + 1} / {FormatValue(div)}\n{rref.ToDisplayString()}");
+                steps.Add($"R{r + 1} = R{r + 1} / {FormatValue(div)}{Environment.NewLine}{rref.ToDisplayString()}");
             }
 
             for (int j = 0; j < rref.Rows; j++)
@@ -269,7 +270,7 @@ public class Matrix
                     if (Math.Abs(sub) > 1e-10)
                     {
                         rref.SubtractRow(j, r, sub);
-                        steps.Add($"R{j + 1} = R{j + 1} - {FormatValue(sub)} × R{r + 1}\n{rref.ToDisplayString()}");
+                        steps.Add($"R{j + 1} = R{j + 1} - {FormatValue(sub)} × R{r + 1}{Environment.NewLine}{rref.ToDisplayString()}");
                     }
                 }
             }
@@ -339,7 +340,7 @@ public class Matrix
 
         var steps = new List<string>
         {
-            "Start:\n" + FormatAugmentedMatrix(left, right)
+            "Start:" + Environment.NewLine + FormatAugmentedMatrix(left, right)
         };
 
         for (int col = 0; col < n; col++)
@@ -356,14 +357,14 @@ public class Matrix
             if (pivotRow != col)
             {
                 SwapRows(left, right, pivotRow, col);
-                steps.Add($"Swap R{col + 1} ↔ R{pivotRow + 1}\n{FormatAugmentedMatrix(left, right)}");
+                steps.Add($"Swap R{col + 1} ↔ R{pivotRow + 1}{Environment.NewLine}{FormatAugmentedMatrix(left, right)}");
             }
 
             double pivot = left[col, col];
             if (Math.Abs(pivot - 1) > 1e-10)
             {
                 DivideRow(left, right, col, pivot);
-                steps.Add($"R{col + 1} = R{col + 1} / {FormatValue(pivot)}\n{FormatAugmentedMatrix(left, right)}");
+                steps.Add($"R{col + 1} = R{col + 1} / {FormatValue(pivot)}{Environment.NewLine}{FormatAugmentedMatrix(left, right)}");
             }
 
             for (int row = 0; row < n; row++)
@@ -375,7 +376,7 @@ public class Matrix
                 if (Math.Abs(factor) > 1e-10)
                 {
                     SubtractRow(left, right, row, col, factor);
-                    steps.Add($"R{row + 1} = R{row + 1} - {FormatValue(factor)} × R{col + 1}\n{FormatAugmentedMatrix(left, right)}");
+                    steps.Add($"R{row + 1} = R{row + 1} - {FormatValue(factor)} × R{col + 1}{Environment.NewLine}{FormatAugmentedMatrix(left, right)}");
                 }
             }
         }
@@ -407,21 +408,16 @@ public class Matrix
 
     public string ToDisplayString()
     {
-        var builder = new StringBuilder();
+        var values = new string[Rows, Columns];
         for (int i = 0; i < Rows; i++)
         {
-            var rowValues = new string[Columns];
             for (int j = 0; j < Columns; j++)
             {
-                rowValues[j] = DoubleToFraction(data[i, j]);
-            }
-            builder.Append(string.Join("\t", rowValues));
-            if (i < Rows - 1)
-            {
-                builder.AppendLine();
+                values[i, j] = DoubleToFraction(data[i, j]);
             }
         }
-        return builder.ToString();
+
+        return FormatMatrixGrid(values);
     }
 
     private static string FormatAugmentedMatrix(double[,] left, double[,] right)
@@ -429,23 +425,31 @@ public class Matrix
         int rows = left.GetLength(0);
         int colsLeft = left.GetLength(1);
         int colsRight = right.GetLength(1);
+
+        var leftValues = new string[rows, colsLeft];
+        var rightValues = new string[rows, colsRight];
+
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < colsLeft; j++)
+            {
+                leftValues[i, j] = DoubleToFraction(left[i, j]);
+            }
+            for (int j = 0; j < colsRight; j++)
+            {
+                rightValues[i, j] = DoubleToFraction(right[i, j]);
+            }
+        }
+
+        int[] leftWidths = GetColumnWidths(leftValues);
+        int[] rightWidths = GetColumnWidths(rightValues);
         var builder = new StringBuilder();
 
         for (int i = 0; i < rows; i++)
         {
-            var leftValues = new string[colsLeft];
-            var rightValues = new string[colsRight];
-            for (int j = 0; j < colsLeft; j++)
-            {
-                leftValues[j] = DoubleToFraction(left[i, j]);
-            }
-            for (int j = 0; j < colsRight; j++)
-            {
-                rightValues[j] = DoubleToFraction(right[i, j]);
-            }
-            builder.Append(string.Join("\t", leftValues));
-            builder.Append(" | ");
-            builder.Append(string.Join("\t", rightValues));
+            AppendFormattedRow(builder, leftValues, leftWidths, i);
+            builder.Append("  |  ");
+            AppendFormattedRow(builder, rightValues, rightWidths, i);
             if (i < rows - 1)
             {
                 builder.AppendLine();
@@ -453,6 +457,56 @@ public class Matrix
         }
 
         return builder.ToString();
+    }
+
+    private static string FormatMatrixGrid(string[,] values)
+    {
+        int rows = values.GetLength(0);
+        int[] widths = GetColumnWidths(values);
+        var builder = new StringBuilder();
+
+        for (int i = 0; i < rows; i++)
+        {
+            AppendFormattedRow(builder, values, widths, i);
+            if (i < rows - 1)
+            {
+                builder.AppendLine();
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static int[] GetColumnWidths(string[,] values)
+    {
+        int rows = values.GetLength(0);
+        int cols = values.GetLength(1);
+        int[] widths = new int[cols];
+
+        for (int j = 0; j < cols; j++)
+        {
+            int width = 0;
+            for (int i = 0; i < rows; i++)
+            {
+                width = Math.Max(width, values[i, j]?.Length ?? 0);
+            }
+            widths[j] = width;
+        }
+
+        return widths;
+    }
+
+    private static void AppendFormattedRow(StringBuilder builder, string[,] values, int[] widths, int row)
+    {
+        int cols = values.GetLength(1);
+        for (int j = 0; j < cols; j++)
+        {
+            builder.Append((values[row, j] ?? string.Empty).PadLeft(widths[j]));
+            if (j < cols - 1)
+            {
+                builder.Append("   ");
+            }
+        }
     }
 
     private static void SwapRows(double[,] left, double[,] right, int row1, int row2)
@@ -544,7 +598,7 @@ public class Matrix
         return data;
     }
 
-    // Calculates the eigenvalues of a matrix
+    // Calculates the eigenvalues of a matrix. Complex eigenvalues are supported and displayed as a ± bi.
     public Tuple<string[], string> Eigenvalues()
     {
         if (Rows != Columns)
@@ -552,12 +606,38 @@ public class Matrix
 
         var mat = MathNet.Numerics.LinearAlgebra.Matrix<double>.Build.DenseOfArray(data);
         var evd = mat.Evd();
-        var eigenvalues = evd.EigenValues.Select(c => DoubleToFraction(c.Real)).ToArray(); // Convert to fraction
+        var eigenvalues = evd.EigenValues.Select(FormatComplexEigenvalue).ToArray();
 
         // Compute the characteristic polynomial
         var characteristicPolynomial = GetCharacteristicPolynomial();
 
         return new Tuple<string[], string>(eigenvalues, characteristicPolynomial);
+    }
+
+    private static string FormatComplexEigenvalue(Complex value)
+    {
+        const double tolerance = 1e-10;
+        double real = Math.Abs(value.Real) < tolerance ? 0 : value.Real;
+        double imaginary = Math.Abs(value.Imaginary) < tolerance ? 0 : value.Imaginary;
+
+        if (imaginary == 0)
+        {
+            return DoubleToFraction(real);
+        }
+
+        string imaginaryPart = FormatImaginaryPart(Math.Abs(imaginary));
+        if (real == 0)
+        {
+            return imaginary > 0 ? imaginaryPart : "-" + imaginaryPart;
+        }
+
+        string sign = imaginary > 0 ? " + " : " - ";
+        return $"{DoubleToFraction(real)}{sign}{imaginaryPart}";
+    }
+
+    private static string FormatImaginaryPart(double magnitude)
+    {
+        return Math.Abs(magnitude - 1) < 1e-10 ? "i" : $"{DoubleToFraction(magnitude)}i";
     }
 
     // Gets the characteristic polynomial of a matrix
